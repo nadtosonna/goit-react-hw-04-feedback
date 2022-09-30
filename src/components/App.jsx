@@ -1,108 +1,59 @@
-import { nanoid } from "nanoid";
-import React, { Component } from 'react';
-import { Notify } from 'notiflix/build/notiflix-notify-aio';
-import { ContactForm } from "./ContactForm/ContactForm";
-import { ContactList } from "./ContactList/ContactList";
-import { SearchFilter } from "./SearchFilter/SearchFilter";
-import { Section } from './Section/Section';
-import css from './App.module.css';
+import { Component } from "react";
+import FeedbackOptions from "./FeedbackOptions/FeedbackOptions";
+import Notification from "./Notification/Notification";
+import Section from "./Section/Section";
+import Statistics from "./Statistics/Statistics";
 
 export class App extends Component {
   state = {
-    contacts: [],
-    filter: '',
+    good: 0,
+    neutral: 0,
+    bad: 0
   };
 
-  componentDidMount() {
-    const contacts = JSON.parse(localStorage.getItem('contacts'));
-    if (contacts?.length) {
-      this.setState({
-        contacts,
-      })
-    }
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    if (this.state === nextState) {
-      return false;
-    }
-    return true;
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    const { contacts } = this.state;
-    if (prevState.contacts !== contacts) {
-      localStorage.setItem('contacts', JSON.stringify(contacts));
-    }
-  }
-
-  addContact = contact => {
-    if (this.isExisting(contact)) {
-      Notify.failure('This contact is already existing in the phonebook!', {
-        position: 'center-top',
-        width: '380px',
-      });
-      return;
-    }
+  onLeaveFeedback = name => {
     this.setState(prevState => {
-      const newContact = {
-        id: nanoid(),
-        ...contact,
-      }
       return {
-        contacts: [...prevState.contacts, newContact],
+        [name]: prevState[name] + 1,
       };
     });
+  };
+
+  countTotal() {
+    const { good, neutral, bad } = this.state;
+    return good + neutral + bad;
   }
 
-  deleteContact = id => {
-    this.setState(prevState => {
-      const newContacts = prevState.contacts.filter(contact => contact.id !== id);
-      return {
-        contacts: newContacts
-      };
-    });
-  }
-
-  isExisting({ name, number }) {
-    const { contacts } = this.state;
-    const check = contacts
-      .find(contact => contact.name.toLowerCase() === name.toLowerCase() || contact.number === number);
-    return check;
-  }
-
-  filterContacts() {
-    const { contacts, filter } = this.state;
-    if (!filter) {
-      return contacts;
+  countPositive() {
+    const total = this.countTotal();
+    if (!total) {
+      return 0;
     }
-    const normalizedFilter = filter.toLowerCase();
-    return contacts.filter(contact => contact.name.toLowerCase().includes(normalizedFilter));
+    const { good } = this.state;
+    const result = Math.round((good / (total)) * 100);
+    return result;
   }
-
-  handleSearchFilter = event => {
-    this.setState({
-      filter: event.currentTarget.value,
-    });
-}
 
   render() {
-    return (
-      <div className={css.container}>
-        <Section title="Phonebook">
-           <ContactForm onSubmit={this.addContact} />
-        </Section>
-        <Section title="Contacts">
-          <SearchFilter
-          filter={this.state.filter}
-          handleSearchFilter={this.handleSearchFilter} />
-        {this.state.contacts.length > 0 ? (
-          <ContactList
-          contacts={this.filterContacts()}
-          deleteContact={this.deleteContact} />
-        ) : <p className={css.emptyList}>Your Contact List is empty.</p>}
-        </Section>
-      </div>
-    );
-  }
+      return (
+        <div>
+          <Section title="Please leave your feedback:">
+            <FeedbackOptions
+            options={Object.keys(this.state)}
+            onLeaveFeedback={this.onLeaveFeedback} />
+          </Section>
+          <Section title="Statistics:">
+            {this.countTotal() ?
+              <Statistics
+                good={this.state.good}
+                neutral={this.state.neutral}
+                bad={this.state.bad}
+                total={this.countTotal()}
+                positiveFeedback={this.countPositive()} /> :
+              <Notification message="There is no feedback yet." />}
+            </Section>
+        </div>
+
+        )
+    }
 }
